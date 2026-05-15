@@ -1,0 +1,54 @@
+# GCP-specific ingress: uses GKE Ingress (Google Cloud Load Balancer).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-app-ingress
+  namespace: travel-app
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "travel-app-ip"  # reserve in advance
+spec:
+  defaultBackend:
+    service:
+      name: travel-service
+      port:
+        number: 8080
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/trips
+            pathType: Prefix
+            backend:
+              service:
+                name: travel-service
+                port:
+                  number: 8080
+          - path: /api/v1/hotels
+            pathType: Prefix
+            backend:
+              service:
+                name: hotel-service
+                port:
+                  number: 8081
+          - path: /api/v1/flights
+            pathType: Prefix
+            backend:
+              service:
+                name: flight-service
+                port:
+                  number: 8082
+---
+# BackendConfig — tunes the GCP load balancer health checks
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: travel-app-backend-config
+  namespace: travel-app
+spec:
+  healthCheck:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 1
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /actuator/health/liveness

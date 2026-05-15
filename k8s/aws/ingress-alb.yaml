@@ -1,0 +1,39 @@
+# AWS-specific ingress: uses the AWS Load Balancer Controller to provision an ALB.
+# Install: https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-app-ingress
+  namespace: travel-app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/liveness
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/trips
+            pathType: Prefix
+            backend:
+              service:
+                name: travel-service
+                port:
+                  number: 8080
+          - path: /api/v1/hotels
+            pathType: Prefix
+            backend:
+              service:
+                name: hotel-service
+                port:
+                  number: 8081
+          - path: /api/v1/flights
+            pathType: Prefix
+            backend:
+              service:
+                name: flight-service
+                port:
+                  number: 8082

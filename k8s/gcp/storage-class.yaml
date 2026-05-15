@@ -1,0 +1,11 @@
+# GCP persistent disk-backed storage class.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: travel-app-storage
+provisioner: pd.csi.storage.gke.io
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: pd-ssd
+  fsType: ext4
+allowVolumeExpansion: true
