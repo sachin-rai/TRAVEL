@@ -1,0 +1,42 @@
+server:
+  port: ${FUNCTION_PORT:8083}
+
+spring:
+  application:
+    name: cancellation-function
+  cloud:
+    function:
+      definition: cancelTrip
+      web:
+        path: /
+    stream:
+      bindings:
+        cancelTrip-in-0:
+          destination: trip-cancellations
+          group: cancellation-function
+          content-type: application/json
+
+services:
+  hotel:
+    url: ${HOTEL_SERVICE_URL:http://localhost:8081}
+  flight:
+    url: ${FLIGHT_SERVICE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    com.cancellation: INFO

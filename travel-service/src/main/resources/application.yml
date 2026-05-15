@@ -1,0 +1,75 @@
+server:
+  port: ${TRAVEL_SERVICE_PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: travel-service
+  datasource:
+    url: jdbc:h2:mem:traveldb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  cloud:
+    stream:
+      bindings:
+        cancellationEvents-out-0:
+          destination: trip-cancellations
+          content-type: application/json
+
+# Inter-service URLs — overridden in K8s via env vars
+services:
+  hotel:
+    url: ${HOTEL_SERVICE_URL:http://localhost:8081}
+  flight:
+    url: ${FLIGHT_SERVICE_URL:http://localhost:8082}
+
+# Serverless function dispatch settings
+function:
+  dispatch:
+    mode: ${FUNCTION_DISPATCH_MODE:http}     # "stream" or "http"
+  cancellation:
+    url: ${CANCELLATION_FUNCTION_URL:http://localhost:8083/cancelTrip}
+    binding: cancellationEvents-out-0
+
+# Itinerary cron — defaults to 6am daily
+itinerary:
+  scheduler:
+    cron: "${ITINERARY_CRON:0 0 6 * * *}"
+
+# Feign config
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    com.travel: INFO

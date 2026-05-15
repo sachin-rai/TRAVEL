@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: travel-app-config
+  namespace: travel-app
+data:
+  # Internal cluster DNS names
+  HOTEL_SERVICE_URL: "http://hotel-service.travel-app.svc.cluster.local:8081"
+  FLIGHT_SERVICE_URL: "http://flight-service.travel-app.svc.cluster.local:8082"
+  CANCELLATION_FUNCTION_URL: "http://cancellation-function.travel-app.svc.cluster.local:8083/cancelTrip"
+  # Dispatch mode: "http" for synchronous direct-call, "stream" for broker-driven
+  FUNCTION_DISPATCH_MODE: "http"
+  ITINERARY_CRON: "0 0 6 * * *"

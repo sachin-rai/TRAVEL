@@ -1,0 +1,91 @@
+# Fallback for clusters without Knative installed: run the function as a
+# regular K8s Deployment with HPA. The function code is unchanged — the
+# serverless contract (one function bean) is preserved, only the runtime layer
+# differs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cancellation-function
+  namespace: travel-app
+  labels:
+    app: cancellation-function
+    function: cancellation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cancellation-function
+  template:
+    metadata:
+      labels:
+        app: cancellation-function
+        function: cancellation
+    spec:
+      containers:
+        - name: cancellation-function
+          image: ${IMAGE_REGISTRY}/cancellation-function:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: travel-app-config
+          env:
+            - name: FUNCTION_PORT
+              value: "8083"
+            - name: JAVA_OPTS
+              value: "-Xms128m -Xmx256m"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cancellation-function
+  namespace: travel-app
+spec:
+  type: ClusterIP
+  selector:
+    app: cancellation-function
+  ports:
+    - name: http
+      port: 8083
+      targetPort: 8083
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cancellation-function-hpa
+  namespace: travel-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cancellation-function
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
