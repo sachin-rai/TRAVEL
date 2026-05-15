@@ -1,0 +1,13 @@
+target/
+.git/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+README.md
+docs/
+k8s/
+scripts/
+Jenkinsfile
+docker-compose.yml
+*.log

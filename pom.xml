@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Aggregator pom — lets you run `mvn clean verify` at the project root to
+    build all four services in one go. Each child module is a STANDALONE pom
+    (no <parent> reference), so each can also be built independently inside
+    its own Docker image without needing this file.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.travelapp</groupId>
+    <artifactId>travel-microservices-aggregator</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>travel-microservices-aggregator</name>
+    <description>Aggregator for building all travel microservices at once</description>
+
+    <modules>
+        <module>hotel-service</module>
+        <module>flight-service</module>
+        <module>travel-service</module>
+        <module>cancellation-function</module>
+    </modules>
+</project>
