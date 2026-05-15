@@ -1,0 +1,41 @@
+# Build output
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config / secrets
+.env
+*.local
+
+# H2 database files (if persisted)
+*.db
+*.h2.db
+*.trace.db
+
+# kubectl / kubeconfig
+kubeconfig
+*.kubeconfig

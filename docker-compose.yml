@@ -1,0 +1,59 @@
+version: "3.9"
+
+# Local development stack — bring everything up with `docker-compose up --build`
+# In Kubernetes / cloud, the same images are used with K8s manifests instead.
+
+services:
+  hotel-service:
+    build: ./hotel-service
+    container_name: hotel-service
+    ports: ["8081:8081"]
+    environment:
+      HOTEL_SERVICE_PORT: 8081
+    networks: [travel-net]
+
+  flight-service:
+    build: ./flight-service
+    container_name: flight-service
+    ports: ["8082:8082"]
+    environment:
+      FLIGHT_SERVICE_PORT: 8082
+    networks: [travel-net]
+
+  cancellation-function:
+    build: ./cancellation-function
+    container_name: cancellation-function
+    ports: ["8083:8083"]
+    environment:
+      FUNCTION_PORT: 8083
+      HOTEL_SERVICE_URL: http://hotel-service:8081
+      FLIGHT_SERVICE_URL: http://flight-service:8082
+    depends_on:
+      hotel-service:
+        condition: service_started
+      flight-service:
+        condition: service_started
+    networks: [travel-net]
+
+  travel-service:
+    build: ./travel-service
+    container_name: travel-service
+    ports: ["8080:8080"]
+    environment:
+      TRAVEL_SERVICE_PORT: 8080
+      HOTEL_SERVICE_URL: http://hotel-service:8081
+      FLIGHT_SERVICE_URL: http://flight-service:8082
+      CANCELLATION_FUNCTION_URL: http://cancellation-function:8083/cancelTrip
+      FUNCTION_DISPATCH_MODE: http
+    depends_on:
+      hotel-service:
+        condition: service_started
+      flight-service:
+        condition: service_started
+      cancellation-function:
+        condition: service_started
+    networks: [travel-net]
+
+networks:
+  travel-net:
+    driver: bridge

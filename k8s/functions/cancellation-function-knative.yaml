@@ -1,0 +1,65 @@
+# Cancellation function deployed as a Knative Service.
+# Knative is the cloud-agnostic serverless layer on top of Kubernetes —
+# the SAME manifest runs on:
+#   - AWS EKS (with Knative installed)
+#   - GCP GKE (with Knative installed, or natively on Cloud Run for Anthos)
+#   - Any other K8s distribution
+#
+# Knative provides:
+#   - Scale to zero when there is no traffic
+#   - Auto-scale up under load
+#   - HTTP-trigger endpoint (used by travel-service publisher in "http" mode)
+#   - Eventing integration (when "stream" mode is used)
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: cancellation-function
+  namespace: travel-app
+  labels:
+    app: cancellation-function
+    function: cancellation
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/target: "50"
+    spec:
+      containerConcurrency: 50
+      timeoutSeconds: 60
+      containers:
+        - name: cancellation-function
+          image: ${IMAGE_REGISTRY}/cancellation-function:${IMAGE_TAG}
+          ports:
+            - name: http1
+              containerPort: 8083
+          env:
+            - name: FUNCTION_PORT
+              value: "8083"
+            - name: HOTEL_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-app-config
+                  key: HOTEL_SERVICE_URL
+            - name: FLIGHT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-app-config
+                  key: FLIGHT_SERVICE_URL
+            - name: JAVA_OPTS
+              value: "-Xms128m -Xmx256m -XX:+UseSerialGC"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds: 10

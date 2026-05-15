@@ -1,0 +1,40 @@
+server:
+  port: ${FLIGHT_SERVICE_PORT:8082}
+  shutdown: graceful
+
+spring:
+  application:
+    name: flight-service
+  datasource:
+    url: jdbc:h2:mem:flightdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+logging:
+  level:
+    com.flight: INFO
