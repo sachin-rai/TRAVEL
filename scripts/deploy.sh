@@ -2,13 +2,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # deploy.sh — Deploy travel-microservices to AWS EKS or GCP GKE.
 #
-# Images are PULLED from PUBLIC GitHub Container Registry (ghcr.io).
+# Images are PULLED from Docker Hub.
 # Because the packages are public, NO PAT is needed here — K8s nodes can
 # pull anonymously. CLOUD_PROVIDER only chooses WHERE to deploy.
 #
 # Required env vars:
 #   CLOUD_PROVIDER     AWS or GCP — which K8s cluster to target
-#   GHCR_OWNER         GitHub username or org that owns the public packages
+#   DOCKER_USER        Docker Hub username or org that owns the public images
 #   IMAGE_TAG          Tag to deploy (e.g. v1, latest)
 #
 # Cloud-specific env vars:
@@ -19,22 +19,22 @@
 #   USE_KNATIVE        true|false — deploy cancellation function on Knative (default: true)
 #
 # Examples:
-#   CLOUD_PROVIDER=AWS GHCR_OWNER=alice IMAGE_TAG=v1 \
+#   CLOUD_PROVIDER=AWS DOCKER_USER=alice IMAGE_TAG=v1 \
 #       AWS_REGION=us-east-1 AWS_EKS_CLUSTER=travel-app-eks ./scripts/deploy.sh
 #
-#   CLOUD_PROVIDER=GCP GHCR_OWNER=alice IMAGE_TAG=v1 \
+#   CLOUD_PROVIDER=GCP DOCKER_USER=alice IMAGE_TAG=v1 \
 #       GCP_PROJECT_ID=my-prj GCP_REGION=us-central1 GCP_GKE_CLUSTER=travel-app-gke \
 #       ./scripts/deploy.sh
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 CLOUD_PROVIDER="${CLOUD_PROVIDER:?CLOUD_PROVIDER must be AWS or GCP}"
-GHCR_OWNER="${GHCR_OWNER:?GHCR_OWNER must be set (GitHub username or org)}"
+DOCKER_USER="${DOCKER_USER:?DOCKER_USER must be set (Docker Hub username or org)}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 USE_KNATIVE="${USE_KNATIVE:-true}"
 
-# ── Images always come from public GHCR ─────────────────────────────────────
-export IMAGE_REGISTRY="ghcr.io/${GHCR_OWNER}"
+# ── Images always come from Docker Hub ──────────────────────────────────────
+export IMAGE_REGISTRY="docker.io/${DOCKER_USER}"
 export IMAGE_TAG
 
 # ── Cloud-specific: configure kubectl to point at the right cluster ─────────
@@ -106,7 +106,7 @@ kubectl -n travel-app rollout status deployment/travel-service --timeout=5m
 
 # ── 6. Summary ──────────────────────────────────────────────────────────────
 echo ""
-echo "✅ Deployed ${IMAGE_TAG} from public GHCR (ghcr.io/${GHCR_OWNER}) to ${CLOUD_PROVIDER}"
+echo "✅ Deployed ${IMAGE_TAG} from Docker Hub (docker.io/${DOCKER_USER}) to ${CLOUD_PROVIDER}"
 echo ""
 kubectl -n travel-app get pods
 echo ""

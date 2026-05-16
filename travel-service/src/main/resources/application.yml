@@ -14,10 +14,15 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+    format_sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+
   h2:
     console:
       enabled: true
       path: /h2-console
+      settings:
+        web-allow-others: true
   cloud:
     stream:
       bindings:

@@ -24,9 +24,9 @@ spec:
     spec:
       containers:
         - name: hotel-service
-          # Images pulled from GitHub Container Registry (ghcr.io).
+          # Images pulled from Docker Hub.
           # IMAGE_REGISTRY is substituted by the Jenkins pipeline / deploy.sh as:
-          #   ghcr.io/<GHCR_OWNER>/hotel-service:<tag>
+          #   docker.io/<DOCKER_USER>/hotel-service:<tag>
           image: ${IMAGE_REGISTRY}/hotel-service:${IMAGE_TAG}
           imagePullPolicy: Always
           ports:

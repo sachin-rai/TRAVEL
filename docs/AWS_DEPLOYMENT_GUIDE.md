@@ -332,68 +332,35 @@ kubectl get pods -n kourier-system
 
 ---
 
-## 8. Create ECR Repositories
+## 8. Docker Hub Setup
 
-ECR is Amazon's container registry. Each service gets its own repo.
+This project uses **Docker Hub** for a cloud-agnostic registry setup.
 
-```bash
-for svc in hotel-service flight-service travel-service cancellation-function; do
-    aws ecr describe-repositories --region $AWS_REGION --repository-names $svc 2>/dev/null \
-        || aws ecr create-repository \
-            --region $AWS_REGION \
-            --repository-name $svc \
-            --image-scanning-configuration scanOnPush=true
-done
-```
-
-Confirm all four exist:
-```bash
-aws ecr describe-repositories --region $AWS_REGION \
-    --query 'repositories[].repositoryName' --output table
-```
-
-You should see all four service names.
+1. Follow [docs/DOCKER_HUB_SETUP.md](DOCKER_HUB_SETUP.md) to create your Docker Hub account and Personal Access Token.
+2. Add the `docker-user` and `docker-pass` credentials to Jenkins.
+3. Your images will be pushed to `docker.io/<your-username>/<service>`.
 
 ---
 
 ## 9. Build and Push Docker Images
 
-### 9.1 Log Docker into ECR
-
-```bash
-aws ecr get-login-password --region $AWS_REGION \
-    | docker login --username AWS \
-                   --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-```
-
-You should see `Login Succeeded`.
-
-### 9.2 Use the provided build-and-push script
+### 9.1 Build and Push
 
 From the project root:
 
 ```bash
-cd travel-microservices/
-
 export CLOUD_PROVIDER=AWS
-export AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID
-export AWS_REGION=$AWS_REGION
+export DOCKER_USER=your-username
+export DOCKER_PASS=your-password-or-token
 export IMAGE_TAG=v1
 
 ./scripts/build-and-push.sh
 ```
 
-This builds and pushes all four images. Each one takes ~3-5 minutes the first time (Maven downloads ~300MB of Spring Boot dependencies inside the build container).
+This builds and pushes all four images. Each one takes ~3-5 minutes the first time.
 
-### 9.3 Verify images are in ECR
-
-```bash
-for svc in hotel-service flight-service travel-service cancellation-function; do
-    echo "=== $svc ==="
-    aws ecr describe-images --region $AWS_REGION --repository-name $svc \
-        --query 'imageDetails[].imageTags' --output table
-done
-```
+### 9.2 Verify images are in Docker Hub
+Visit `https://hub.docker.com/u/<your-username>` to see your newly pushed repositories. Ensure they are set to **Public**.
 
 Each should show tags `v1` and `latest`.
 
@@ -674,7 +641,7 @@ aws ecr describe-repositories --region $AWS_REGION
 |---|---|---|
 | `eksctl create cluster` fails with insufficient permissions | IAM user missing CloudFormation or VPC permissions | Re-attach the policies listed in [3.1](#31-create-an-iam-user-for-the-deployment) |
 | `kubectl get nodes` returns "Unable to connect to the server" | kubeconfig didn't get updated | Run `aws eks update-kubeconfig --region $AWS_REGION --name travel-app-eks` |
-| Pods stuck in `ImagePullBackOff` | Worker nodes can't pull from ECR | Confirm the node IAM role has `AmazonEC2ContainerRegistryReadOnly`. `eksctl` adds it by default; if you used a custom role, attach it manually. |
+| Pods stuck in `ImagePullBackOff` | Worker nodes can't pull from Docker Hub | Confirm the repository is set to **Public** on Docker Hub. |
 | Pods stuck in `Pending` with "0/3 nodes are available: insufficient cpu" | Worker nodes are too small for the configured resource requests | Either: (a) increase node count: `eksctl scale nodegroup --cluster=travel-app-eks --nodes=4 --name=standard-workers`, or (b) reduce `requests.cpu` in the deployment YAMLs |
 | Ingress ADDRESS stays empty for >5 minutes | AWS Load Balancer Controller not installed or its IAM role is wrong | `kubectl logs -n kube-system deployment/aws-load-balancer-controller` — look for IAM errors |
 | Knative service stays "Unknown" / not ready | `serving-core.yaml` not fully deployed | `kubectl get pods -n knative-serving` — all must be Running; if not, `kubectl describe` the failed pod |

@@ -1,32 +1,31 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# build-and-push.sh — Build and push all 4 service images to GitHub Container
-# Registry (ghcr.io).
+# build-and-push.sh — Build and push all 4 service images to Docker Hub.
 #
 # Required env vars:
-#   GHCR_OWNER     GitHub username or organization name (lowercase)
-#   GHCR_PAT       GitHub Personal Access Token with `write:packages` scope
+#   DOCKER_USER    Docker Hub username or organization name (lowercase)
+#   DOCKER_PASS    Docker Hub Password or Personal Access Token (PAT)
 #   IMAGE_TAG      Tag for the images (e.g. v1, latest)
 #
 # Optional:
 #   SERVICES       Space-separated list of services to build (defaults to all 4)
 #
 # Usage:
-#   GHCR_OWNER=alice GHCR_PAT=ghp_xxx IMAGE_TAG=v1 ./scripts/build-and-push.sh
+#   DOCKER_USER=alice DOCKER_PASS=dckr_pat_xxx IMAGE_TAG=v1 ./scripts/build-and-push.sh
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-GHCR_OWNER="${GHCR_OWNER:?GHCR_OWNER must be set (your GitHub username or org)}"
-GHCR_PAT="${GHCR_PAT:?GHCR_PAT must be set (Personal Access Token with write:packages)}"
+DOCKER_USER="${DOCKER_USER:?DOCKER_USER must be set (your Docker Hub username or org)}"
+DOCKER_PASS="${DOCKER_PASS:?DOCKER_PASS must be set (Password or Token)}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICES="${SERVICES:-hotel-service flight-service travel-service cancellation-function}"
-GHCR_REGISTRY="ghcr.io"
+DOCKER_REGISTRY="docker.io"
 
-REGISTRY="${GHCR_REGISTRY}/${GHCR_OWNER}"
+REGISTRY="${DOCKER_REGISTRY}/${DOCKER_USER}"
 
-echo "→ Logging in to GitHub Container Registry as ${GHCR_OWNER}"
-echo "${GHCR_PAT}" | docker login "${GHCR_REGISTRY}" \
-    --username "${GHCR_OWNER}" --password-stdin
+echo "→ Logging in to Docker Hub as ${DOCKER_USER}"
+echo "${DOCKER_PASS}" | docker login "${DOCKER_REGISTRY}" \
+    --username "${DOCKER_USER}" --password-stdin
 
 echo "→ Building and pushing tag=${IMAGE_TAG} to ${REGISTRY}"
 
@@ -50,6 +49,6 @@ done
 
 echo ""
 echo "✅ All images pushed to ${REGISTRY}"
-echo "   Visit: https://github.com/${GHCR_OWNER}?tab=packages"
+echo "   Visit: https://hub.docker.com/u/${DOCKER_USER}"
 
-docker logout "${GHCR_REGISTRY}" 2>/dev/null || true
+docker logout "${DOCKER_REGISTRY}" 2>/dev/null || true

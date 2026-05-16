@@ -182,14 +182,13 @@ ItineraryScheduler.issueItinerariesForToday()
         │  CLOUD_PROVIDER  │              │  CLOUD_PROVIDER  │
         │      = AWS       │              │      = GCP       │
         ├──────────────────┤              ├──────────────────┤
-        │ Registry: ECR    │              │ Registry: Artifact│
-        │ Cluster:  EKS    │              │           Registry│
-        │ Ingress:  ALB    │              │ Cluster:  GKE    │
-        │ Func:     Knative│              │ Ingress:  GCLB   │
-        │           or λ   │              │ Func:     Knative │
-        │                  │              │           or Cloud│
-        │                  │              │           Run     │
-        └──────────────────┘              └──────────────────┘
+        │ Registry: Docker Hub │              │ Registry: Docker Hub │
+        │ Cluster:  EKS        │              │ Cluster:  GKE        │
+        │ Ingress:  ALB        │              │ Ingress:  GCLB       │
+        │ Func:     Knative    │              │ Func:     Knative    │
+        │           or Lambda  │              │           or Cloud   │
+        │                      │              │           Run        │
+        └──────────────────────┘              └──────────────────────┘
                   │                                 │
                   └─────────────┬───────────────────┘
                                 ▼

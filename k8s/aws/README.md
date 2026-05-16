@@ -9,10 +9,13 @@ This folder contains overlays applied AFTER the common manifests when deploying 
 
 ## Image registry
 
-Travel app images are pushed to **Amazon ECR**:
+Travel app images are pushed to **Docker Hub**:
 ```
-<account-id>.dkr.ecr.<region>.amazonaws.com/{travel,hotel,flight,cancellation}-service
+docker.io/<username>/{travel,hotel,flight}-service
+docker.io/<username>/cancellation-function
 ```
+
+Kubernetes nodes pull these images anonymously (no `imagePullSecret` needed) because they are set to **public** on Docker Hub.
 
 ## Serverless options on AWS
 

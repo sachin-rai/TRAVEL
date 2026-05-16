@@ -310,30 +310,13 @@ kubectl get pods -n kourier-system
 
 ---
 
-## 8. Create Artifact Registry Repository
+## 8. Docker Hub Setup
 
-Artifact Registry is Google's container registry (the successor to Container Registry / GCR). One repo holds all four service images.
+This project uses **Docker Hub** for a cloud-agnostic registry setup.
 
-```bash
-gcloud artifacts repositories create travel \
-    --repository-format=docker \
-    --location=$GCP_REGION \
-    --description="Travel microservices container images"
-```
-
-Verify:
-```bash
-gcloud artifacts repositories list --location=$GCP_REGION
-# Should show 'travel' repo
-```
-
-The image URLs will be:
-```
-us-central1-docker.pkg.dev/<PROJECT_ID>/travel/hotel-service:v1
-us-central1-docker.pkg.dev/<PROJECT_ID>/travel/flight-service:v1
-us-central1-docker.pkg.dev/<PROJECT_ID>/travel/travel-service:v1
-us-central1-docker.pkg.dev/<PROJECT_ID>/travel/cancellation-function:v1
-```
+1. Follow [docs/DOCKER_HUB_SETUP.md](DOCKER_HUB_SETUP.md) to create your Docker Hub account and Personal Access Token.
+2. Add the `docker-user` and `docker-pass` credentials to Jenkins.
+3. Your images will be pushed to `docker.io/<your-username>/<service>`.
 
 ---
 
@@ -357,37 +340,21 @@ gcloud compute addresses describe travel-app-ip --global
 
 ## 10. Build and Push Docker Images
 
-### 10.1 Configure Docker auth for Artifact Registry
-
-```bash
-gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
-```
-
-This adds Artifact Registry to your `~/.docker/config.json` so `docker push` works.
-
-### 10.2 Use the provided build-and-push script
+### 10.1 Build and Push
 
 From the project root:
 
 ```bash
-cd travel-microservices/
-
 export CLOUD_PROVIDER=GCP
-export GCP_PROJECT_ID=$GCP_PROJECT_ID
-export GCP_REGION=$GCP_REGION
+export DOCKER_USER=your-username
+export DOCKER_PASS=your-password-or-token
 export IMAGE_TAG=v1
 
 ./scripts/build-and-push.sh
 ```
 
-This builds and pushes all four images. Each one takes ~3-5 minutes the first time (Maven downloads ~300MB of Spring Boot dependencies inside the build container).
-
-### 10.3 Verify images are in Artifact Registry
-
-```bash
-gcloud artifacts docker images list \
-    $GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/travel
-```
+### 10.2 Verify images are in Docker Hub
+Visit `https://hub.docker.com/u/<your-username>` to see your newly pushed repositories. Ensure they are set to **Public**.
 
 You should see all four service names, each with `v1` and `latest` tags.
 
@@ -684,7 +651,7 @@ gcloud projects delete $GCP_PROJECT_ID
 |---|---|---|
 | `gcloud container clusters create` fails with permission denied | Account lacks Kubernetes Engine Admin role | In GCP Console → IAM → grant your account `Kubernetes Engine Admin` |
 | `kubectl get nodes` fails with "no Auth Provider found" | Missing `gke-gcloud-auth-plugin` | `gcloud components install gke-gcloud-auth-plugin` |
-| Pods stuck in `ImagePullBackOff` | Node service account lacks Artifact Registry read | The default GKE node SA has it. If you used a custom SA, grant `roles/artifactregistry.reader` |
+| Pods stuck in `ImagePullBackOff` | GKE nodes can't pull from Docker Hub | Confirm repository is set to **Public** on Docker Hub. |
 | Pods stuck in `Pending` with "0/3 nodes are available: insufficient cpu" | Worker nodes too small | Either scale up: `gcloud container clusters resize travel-app-gke --num-nodes=2 --region=$GCP_REGION`, or use larger node type at creation |
 | Ingress ADDRESS stays empty for >10 minutes | Static IP not reserved, or ingress annotation wrong | `gcloud compute addresses list` — verify `travel-app-ip` exists. Check the ingress annotation `kubernetes.io/ingress.global-static-ip-name: "travel-app-ip"` |
 | Ingress has ADDRESS but curl returns 502 | GCLB backends still being health-checked | Wait 5-10 minutes after ingress creation. Check backend health in Console → Network Services → Load Balancing |

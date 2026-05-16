@@ -16,7 +16,7 @@ A cloud-agnostic Spring Boot 3 / Java 17 microservices project that demonstrates
 8. [Deploy to AWS (EKS, Pure Kubernetes)](#8-deploy-to-aws-eks-pure-kubernetes)
 9. [Deploy to GCP (GKE, Pure Kubernetes)](#9-deploy-to-gcp-gke-pure-kubernetes)
 10. [Jenkins CI/CD Pipeline](#10-jenkins-cicd-pipeline)
-11. [API Reference](#11-api-reference)
+11. [API Reference & Swagger](#11-api-reference--swagger)
 12. [How the Serverless Function Works](#12-how-the-serverless-function-works)
 13. [Troubleshooting](#13-troubleshooting)
 
@@ -50,7 +50,7 @@ Customer → Ingress → travel-service ──► hotel-service
 
 **Cloud-agnostic by design:**
 
-- Docker images are built once, pushed to **ECR** (AWS) or **Artifact Registry** (GCP).
+- Docker images are built once, pushed to **Docker Hub**.
 - Kubernetes manifests under `k8s/common/` are identical for both clouds.
 - Cloud-specific bits (ingress controller, storage class) live in `k8s/aws/` and `k8s/gcp/` and are applied as overlays.
 - The serverless cancellation function runs on **Knative** (the cloud-agnostic K8s serverless layer) — the same manifest works on EKS and GKE. It can also run on AWS Lambda or GCP Cloud Run using the same JAR.
@@ -105,7 +105,7 @@ travel-microservices/
 │       └── storage-class.yaml
 │
 ├── scripts/
-│   ├── build-and-push.sh                   ← build + push images to ECR/AR
+│   ├── build-and-push.sh                   ← build + push images to Docker Hub
 │   ├── deploy.sh                           ← apply manifests
 │   ├── smoke-test.sh                       ← end-to-end test
 │   └── cleanup.sh                          ← tear down
@@ -243,12 +243,12 @@ kubectl patch configmap/config-network -n knative-serving --type merge \
     -p '{"data":{"ingress-class":"kourier.ingress.networking.knative.dev"}}'
 ```
 
-### Step 2 — Build & push images to ECR
+### Step 2 — Build & push images to Docker Hub
 
 ```bash
 export CLOUD_PROVIDER=AWS
-export AWS_ACCOUNT_ID=123456789012
-export AWS_REGION=us-east-1
+export DOCKER_USER=your-username
+export DOCKER_PASS=your-password-or-token
 export IMAGE_TAG=v1
 
 ./scripts/build-and-push.sh
@@ -257,6 +257,7 @@ export IMAGE_TAG=v1
 ### Step 3 — Deploy
 
 ```bash
+export DOCKER_USER=your-username
 export AWS_EKS_CLUSTER=travel-app-eks
 ./scripts/deploy.sh
 ```
@@ -332,12 +333,12 @@ kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1
 kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v1.14.0/kourier.yaml
 ```
 
-### Step 2 — Build & push images to Artifact Registry
+### Step 2 — Build & push images to Docker Hub
 
 ```bash
 export CLOUD_PROVIDER=GCP
-export GCP_PROJECT_ID=my-project-id
-export GCP_REGION=us-central1
+export DOCKER_USER=your-username
+export DOCKER_PASS=your-password-or-token
 export IMAGE_TAG=v1
 
 ./scripts/build-and-push.sh
@@ -346,6 +347,7 @@ export IMAGE_TAG=v1
 ### Step 3 — Deploy
 
 ```bash
+export DOCKER_USER=your-username
 export GCP_GKE_CLUSTER=travel-app-gke
 ./scripts/deploy.sh
 ```
@@ -377,10 +379,11 @@ The `Jenkinsfile` at the project root drives the entire build → push → deplo
 
 | Credential ID | Type | Used For |
 |---|---|---|
-| `aws-credentials` | AWS access key | ECR login, EKS access |
-| `aws-account-id` | Secret text | ECR registry URL |
-| `gcp-service-account` | Secret file (JSON) | Artifact Registry + GKE |
-| `gcp-project-id` | Secret text | Artifact Registry URL |
+| `docker-user` | Secret text | Docker Hub username |
+| `docker-pass` | Secret text | Docker Hub password/token |
+| `aws-credentials` | AWS access key | EKS access |
+| `gcp-service-account` | Secret file (JSON) | GKE access |
+| `gcp-project-id` | Secret text | GCP project ID |
 
 ### Pipeline parameters
 
@@ -397,7 +400,7 @@ The `Jenkinsfile` at the project root drives the entire build → push → deplo
 2. **Configure Cloud** — sets `IMAGE_REGISTRY` and `K8S_OVERLAY` based on `CLOUD_PROVIDER`
 3. **Build & Unit Test** — `mvn clean verify`
 4. **Build Docker Images** — builds each service
-5. **Push Images** — ECR or Artifact Registry depending on provider
+5. **Push Images** — Docker Hub
 6. **Configure Kubectl** — `aws eks update-kubeconfig` or `gcloud container clusters get-credentials`
 7. **Deploy to Kubernetes** — applies `k8s/common/`, the chosen cloud overlay, and the function manifest
 8. **Smoke Test** — checks pods & services are running
@@ -408,7 +411,16 @@ In Jenkins UI: *Build with Parameters* → pick `CLOUD_PROVIDER`. The exact same
 
 ---
 
-## 11. API Reference
+## 11. API Reference & Swagger
+
+Each service provides a **Swagger / OpenAPI 3** UI for exploring and testing the API directly from the browser.
+
+| Microservice | Port | Swagger UI URL |
+|---|---|---|
+| **travel-service** | 8080 | http://localhost:8080/swagger-ui.html |
+| **hotel-service** | 8081 | http://localhost:8081/swagger-ui.html |
+| **flight-service** | 8082 | http://localhost:8082/swagger-ui.html |
+| **cancellation-function** | 8083 | http://localhost:8083/swagger-ui.html |
 
 ### travel-service (port 8080)
 
@@ -517,8 +529,7 @@ The function listens on both channels by default, so the runtime decides at depl
 |---|---|
 | `mvn` fails with "no compiler" | Install JDK 17 and verify `java -version` and `mvn -v` |
 | `docker-compose up` exits with port in use | Stop any local service holding 8080-8083, 5672, 15672 |
-| Pods in `ImagePullBackOff` on EKS | Run `aws ecr get-login-password ...`, confirm the image tag exists in ECR, confirm the node IAM role has `AmazonEC2ContainerRegistryReadOnly` |
-| Pods in `ImagePullBackOff` on GKE | `gcloud auth configure-docker` + ensure the node service account has `roles/artifactregistry.reader` |
+| Pods in `ImagePullBackOff` | Confirm the image tag exists in Docker Hub, confirm repository is Public. |
 | Ingress IP is empty on AWS | Confirm AWS Load Balancer Controller is installed and has IAM permissions |
 | Ingress IP is empty on GCP | The static IP `travel-app-ip` must exist (`gcloud compute addresses create travel-app-ip --global`) |
 | Knative service stays at `0/0` | Knative scales to zero by default; send a request to wake it. Confirm `minScale` annotation if you need a warm pod. |
@@ -528,7 +539,3 @@ The function listens on both channels by default, so the runtime decides at depl
 | "Cannot cancel: trip start date has already arrived" | This is expected — once `startDate` has passed, the itinerary has been issued and cancellation is no longer allowed. |
 
 ---
-
-## License
-
-MIT — provided for educational / demo purposes. The H2 in-memory database means **data is lost on every restart** — replace with a managed RDS/CloudSQL instance for any real use.

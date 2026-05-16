@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CI/CD PIPELINE — PUBLIC GHCR REGISTRY VARIANT
+// CI/CD PIPELINE — DOCKER HUB REGISTRY VARIANT
 //
-// All container images live in GitHub Container Registry (ghcr.io) and are
+// All container images live in Docker Hub and are
 // PUBLIC. Because they're public:
 //   - Anyone (including K8s nodes on EKS/GKE) can pull without authentication
 //   - No imagePullSecret needed in the target cluster
-//   - Only the BUILD side needs a PAT (with write:packages scope) for pushing
+//   - Only the BUILD side needs credentials for pushing
 //
 // The CLOUD_PROVIDER parameter only chooses WHERE to deploy:
 //   AWS -> EKS  (with ALB ingress)
@@ -20,7 +20,7 @@ pipeline {
         choice(
             name: 'CLOUD_PROVIDER',
             choices: ['AWS', 'GCP'],
-            description: 'Where to deploy. Images are always pushed to public GHCR.'
+            description: 'Where to deploy. Images are always pushed to Docker Hub.'
         )
         string(
             name: 'IMAGE_TAG',
@@ -30,7 +30,7 @@ pipeline {
         booleanParam(
             name: 'BUILD_AND_PUSH',
             defaultValue: true,
-            description: 'Build images and push to GHCR? Untick to deploy an existing tag.'
+            description: 'Build images and push to Docker Hub? Untick to deploy an existing tag.'
         )
         booleanParam(
             name: 'DEPLOY',
@@ -45,10 +45,10 @@ pipeline {
     }
 
     environment {
-        // ── GHCR (public packages — only push needs auth) ───────────────────
-        GHCR_REGISTRY  = 'ghcr.io'
-        GHCR_OWNER     = credentials('ghcr-owner')        // Jenkins secret: GitHub username/org (lowercase)
-        GHCR_PAT       = credentials('ghcr-pat')          // Jenkins secret: PAT with write:packages — used ONLY for pushing
+        // ── Docker Hub (public images — only push needs auth) ────────────────
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_USER     = credentials('docker-user')       // Jenkins secret: Docker Hub username/org
+        DOCKER_PASS     = credentials('docker-pass')       // Jenkins secret: Docker Hub password/token
 
         // ── AWS settings (used when CLOUD_PROVIDER == AWS) ──────────────────
         AWS_REGION         = 'us-east-1'
@@ -69,12 +69,12 @@ pipeline {
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Image registry is ALWAYS GHCR. Only the K8s overlay varies by cloud.
+        // Image registry is ALWAYS Docker Hub. Only the K8s overlay varies by cloud.
         // ─────────────────────────────────────────────────────────────────────
         stage('Configure') {
             steps {
                 script {
-                    env.IMAGE_REGISTRY = "${env.GHCR_REGISTRY}/${env.GHCR_OWNER}"
+                    env.IMAGE_REGISTRY = "${env.DOCKER_REGISTRY}/${env.DOCKER_USER}"
 
                     if (params.CLOUD_PROVIDER == 'AWS') {
                         env.K8S_OVERLAY = 'k8s/aws'
@@ -104,17 +104,17 @@ pipeline {
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Build, tag, and push all 4 images to public GHCR.
-        // PAT is needed here because PUSHING always requires auth, even to
-        // public packages. PULLING from a public package needs no auth.
+        // Build, tag, and push all 4 images to Docker Hub.
+        // Credentials are needed here because PUSHING always requires auth,
+        // even to public repositories. PULLING from a public repo needs no auth.
         // ─────────────────────────────────────────────────────────────────────
-        stage('Build & Push Images to GHCR') {
+        stage('Build & Push Images to Docker Hub') {
             when { expression { return params.BUILD_AND_PUSH } }
             steps {
                 script {
                     sh """
-                        echo "\${GHCR_PAT}" | docker login ${env.GHCR_REGISTRY} \
-                            -u "\${GHCR_OWNER}" --password-stdin
+                        echo "\${DOCKER_PASS}" | docker login ${env.DOCKER_REGISTRY} \
+                            -u "\${DOCKER_USER}" --password-stdin
                     """
 
                     for (svc in env.SERVICES.split()) {
@@ -124,14 +124,13 @@ pipeline {
                             docker tag  ${env.IMAGE_REGISTRY}/${svc}:${params.IMAGE_TAG} \
                                         ${env.IMAGE_REGISTRY}/${svc}:latest
 
-                            echo "Pushing ${svc} to GHCR"
+                            echo "Pushing ${svc} to Docker Hub"
                             docker push ${env.IMAGE_REGISTRY}/${svc}:${params.IMAGE_TAG}
                             docker push ${env.IMAGE_REGISTRY}/${svc}:latest
                         """
                     }
 
-                    echo "ℹ️  Reminder: each NEW package is private by default."
-                    echo "    First-time setup: GitHub → your packages → each package → 'Change visibility' → Public"
+                    echo "ℹ️  Reminder: Ensure your repositories are set to 'Public' on Docker Hub."
                     echo "    Once public, EKS/GKE nodes can pull without any pull secret."
                 }
             }
@@ -223,13 +222,13 @@ pipeline {
 
     post {
         success {
-            echo "✅ ${params.IMAGE_TAG} deployed to ${params.CLOUD_PROVIDER} from public GHCR"
+            echo "✅ ${params.IMAGE_TAG} deployed to ${params.CLOUD_PROVIDER} from Docker Hub"
         }
         failure {
             echo "❌ Pipeline failed at stage ${env.STAGE_NAME}"
         }
         always {
-            sh 'docker logout ghcr.io || true'
+            sh "docker logout ${env.DOCKER_REGISTRY} || true"
             sh 'docker system prune -f || true'
         }
     }
